@@ -1,5 +1,6 @@
 #pragma once
 
+#include "FieldCell.h"
 
 namespace icc
 {
@@ -24,32 +25,26 @@ namespace icc
 			void	DeleteField();
 			void	CreateField();
 
-			void	CalcMines();
-			void	GenerateMines();
+			void	SetupNeighbors();
 
-			//передаваемые параметры - индексы соседей для клетки, для которой я считаю кол-во мин вокруг
+			//передаваемый параметр - клетка в которой не должно быть мины
+			void	GenerateMines(size_t excludeCellIndex);
+
+			void	OpenCellsAround(size_t cellIndex, std::vector<OPENED_CELL_INFO>& openedCells);
 			inline	size_t	CalcMinesAround(size_t n1, size_t n2, size_t n3)
 			{
 				size_t result = 0;
-				if (field[n1].hasMine)
+				if (field[n1]->HasMine())
 					++result;
-				if (field[n2].hasMine)
+				if (field[n2]->HasMine())
 					++result;
-				if (field[n3].hasMine)
+				if (field[n3]->HasMine())
 					++result;
 
 				return result;
 			}
 		private:
-			struct FIELD_CELL
-			{
-				BOOL	isOpened;
-				BOOL	hasMine;
-				int		countMinesAround;
-				FIELD_CELL() : hasMine(false), countMinesAround(0), isOpened(FALSE)
-				{}
-			};
-			std::vector<FIELD_CELL>	field;
+			std::vector<FieldCell*>	field;
 
 			size_t	width;
 			size_t	height;

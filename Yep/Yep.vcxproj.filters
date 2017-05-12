@@ -54,6 +54,9 @@
     <ClInclude Include="AppStrings.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="FieldCell.h">
+      <Filter>Game classes</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Yep.cpp">
@@ -72,6 +75,9 @@
       <Filter>MainWindow</Filter>
     </ClCompile>
     <ClCompile Include="GameField.cpp">
+      <Filter>Game classes</Filter>
+    </ClCompile>
+    <ClCompile Include="FieldCell.cpp">
       <Filter>Game classes</Filter>
     </ClCompile>
   </ItemGroup>

@@ -11,19 +11,96 @@ icc::MineSweeper::GameField::GameField(size_t widthValue, size_t heightValue, si
 
 void icc::MineSweeper::GameField::DeleteField()
 {
-	field.clear();
+	for (auto cell : field)
+		delete cell;
 }
 
 void icc::MineSweeper::GameField::CreateField()
 {
 	field.resize(countCells);
 	for (size_t i = 0; i < countCells; ++i)
+		field[i] = new FieldCell();
+
+	SetupNeighbors();
+	isOpenedField = FALSE;
+}
+
+void icc::MineSweeper::GameField::SetupNeighbors()
+{
+	const auto offsetTL = width + 1;	//смещение вверх влево
+	const auto offsetTR = width - 1;	//вверх вправо
+	const auto offsetBL = width - 1;	//вниз влево
+	const auto offsetBR = width + 1;	//вниз вправо
+
+	//у угловых клеток только 3 соседа
 	{
-		field[i].hasMine = FALSE;
-		field[i].countMinesAround = 0;
+		size_t cornerCellIndex = 0;	//левая верхняя
+		field[cornerCellIndex]->AddNeighbors(field[cornerCellIndex + 1], 
+											field[cornerCellIndex + width], field[cornerCellIndex + offsetBR]);
+
+		cornerCellIndex = (height - 1) * width; 	//левая нижняя
+		field[cornerCellIndex]->AddNeighbors(field[cornerCellIndex + 1],
+											field[cornerCellIndex - width], field[cornerCellIndex - offsetTR]);
+
+		cornerCellIndex = width - 1;	//правая верхняя
+		field[cornerCellIndex]->AddNeighbors(field[cornerCellIndex - 1],
+											field[cornerCellIndex + width], field[cornerCellIndex + offsetBL]);
+
+		cornerCellIndex = height * width - 1; 	//правая нижняя
+		field[cornerCellIndex]->AddNeighbors(field[cornerCellIndex - 1],
+											field[cornerCellIndex - width], field[cornerCellIndex - offsetTL]);
 	}
 
-	isOpenedField = FALSE;
+	//левая и правая вертикаль
+	{
+		for (size_t y = 1; y < height - 1; ++y)
+		{
+			const auto left = y * width;
+			field[left]->AddNeighbors(field[left + 1], field[left + width], field[left - width]);
+			field[left]->AddNeighbors(field[left - offsetTR], field[left + offsetBR]);
+
+			const auto right = left + width - 1;
+			field[right]->AddNeighbors(field[right - 1], field[right + width], field[right - width]);
+			field[right]->AddNeighbors(field[right + offsetBL], field[right - offsetTL]);
+		}
+	}
+
+	//верхняя линия и нижняя линия
+	{
+		for (size_t x = 1; x < width - 1; ++x)
+		{
+			field[x]->AddNeighbors(field[x + offsetBL], field[x + offsetBL + 1], field[x + offsetBL + 2]);
+			field[x]->AddNeighbors(field[x - 1], field[x + 1]);
+		}
+
+		for (size_t x = (height - 1) * width + 1; x < countCells - 1; ++x)
+		{
+			field[x]->AddNeighbors(field[x - offsetTL], field[x - offsetTL + 1], field[x - offsetTL + 2]);
+			field[x]->AddNeighbors(field[x - 1], field[x + 1]);
+		}
+	}
+
+	//и все остальное в центре
+	{
+		const size_t countCellInMiddleRow = width - 2;
+		for (size_t y = 1; y < height - 1; ++y)
+		{
+			auto index = y * width + 1;
+			for (size_t x = 0; x < countCellInMiddleRow; ++x)
+			{
+				//3 верхних клетки
+				field[index]->AddNeighbors(field[index - offsetTL], field[index - offsetTL + 1], field[index - offsetTL + 2]);
+
+				//3 нижних клетки
+				field[index]->AddNeighbors(field[index + offsetBL], field[index + offsetBL + 1], field[index + offsetBL + 2]);
+
+				//и по бокам
+				field[index]->AddNeighbors(field[index - 1], field[index + 1]);
+
+				++index;
+			}
+		}
+	}
 }
 
 icc::MineSweeper::GameField::~GameField()
@@ -31,11 +108,14 @@ icc::MineSweeper::GameField::~GameField()
 	DeleteField();
 }
 
-void icc::MineSweeper::GameField::GenerateMines()
+void icc::MineSweeper::GameField::GenerateMines(size_t excludeCellIndex)
 {
 	PseudoRandom drand(__rdtsc());
 	for (size_t i = 0; i < countCells; ++i)
-		field[i].hasMine = (drand.Next(5) == 2) ? TRUE : FALSE;
+	{
+		if (i != excludeCellIndex && (drand.Next(5) == 2))
+			field[i]->SetAsMined();
+	}
 }
 
 size_t icc::MineSweeper::GameField::GetWidth() const
@@ -52,177 +132,47 @@ EOpenCellResult icc::MineSweeper::GameField::OpenCell(size_t cellIndex, std::vec
 {
 	openedCells.clear();
 
-	if (isOpenedField)
+	if (!isOpenedField)
 	{
-		if (field[cellIndex].hasMine)
-		{
-			for (size_t i = 0; i < countCells; ++i)
-			{
-				OPENED_CELL_INFO cellInfo(i, field[i].countMinesAround, field[i].hasMine);
-				openedCells.push_back(cellInfo);
-			}
+		isOpenedField = TRUE;
+		GenerateMines(cellIndex);
+		
+		for (auto cell : field)
+			cell->CalcMinesAround();
+	}
 
-			return EOpenCellResult::EndGame;
+	if (field[cellIndex]->HasMine())
+	{
+		for (size_t i = 0; i < countCells; ++i)
+		{
+			OPENED_CELL_INFO cellInfo(i, field[i]->GetCountMinesAround(), field[i]->HasMine());
+			openedCells.push_back(cellInfo);
 		}
+
+		return EOpenCellResult::EndGame;
 	}
 	else
 	{
-		isOpenedField = TRUE;
-		GenerateMines();
+		field[cellIndex]->SetAsOpened();
 
-		if (field[cellIndex].hasMine)
+		if (field[cellIndex]->IsEmpty())
+			OpenCellsAround(cellIndex, openedCells);
+		else
 		{
-			field[cellIndex].hasMine = FALSE;			
-			//замена мины в запрашиваемых координатах на первое свободное место
-			for (size_t i = 0; i < countCells; ++i)
-			{
-				if (field[i].hasMine)
-					;
-				else
-				{
-					field[i].hasMine = TRUE;
-					break;
-				}
-			}
+			OPENED_CELL_INFO cellInfo(cellIndex, field[cellIndex]->GetCountMinesAround(), field[cellIndex]->HasMine());
+			openedCells.push_back(cellInfo);
 		}
 
-		CalcMines();
+		return EOpenCellResult::Luckyboy;
 	}
-
-	field[cellIndex].isOpened = TRUE;
-
-	for (size_t i = 0; i < countCells; ++i)
-	{
-		OPENED_CELL_INFO cellInfo(i, field[i].countMinesAround, field[i].hasMine);
-		openedCells.push_back(cellInfo);
-	}
-
-	//OPENED_CELL_INFO cellInfo(cellIndex, field[cellIndex].countMinesAround, field[cellIndex].hasMine);
-	//openedCells.push_back(cellInfo);
-
-	return EOpenCellResult::Luckyboy;
+	//for (size_t i = 0; i < countCells; ++i)
+	//{
+	//	OPENED_CELL_INFO cellInfo(i, field[i].countMinesAround, field[i]->HasMine());
+	//	openedCells.push_back(cellInfo);
+	//}
 }
 
-void icc::MineSweeper::GameField::CalcMines()
+void icc::MineSweeper::GameField::OpenCellsAround(size_t cellIndex, std::vector<OPENED_CELL_INFO>& openedCells)
 {
-	if (field.size() == 0)
-		return;
 
-	size_t countMines = 0;
-
-	//угловые точки особые, исключительные заразы
-	{
-		//левая верхняя
-		size_t cornerCellIndex = 0;
-		field[0].countMinesAround = 
-					CalcMinesAround(cornerCellIndex + 1, cornerCellIndex + width, cornerCellIndex + width + 1);
-
-		cornerCellIndex = (height - 1) * width; 	//левая нижняя
-		field[cornerCellIndex].countMinesAround =
-					CalcMinesAround(cornerCellIndex + 1, cornerCellIndex - width, cornerCellIndex - width + 1);
-
-		cornerCellIndex = width - 1;	//правая верхняя
-		field[cornerCellIndex].countMinesAround = 
-							CalcMinesAround(cornerCellIndex - 1, cornerCellIndex + width, cornerCellIndex + width - 1);
-
-		cornerCellIndex = height * width - 1; 	//правая нижняя
-		field[cornerCellIndex].countMinesAround = 
-							CalcMinesAround(cornerCellIndex - 1, cornerCellIndex - width, cornerCellIndex - width - 1);
-	}
-
-	const auto offsetTL = width + 1;	//смещение вверх влево
-	const auto offsetTR = width - 1;	//вверх вправо
-	const auto offsetBL = width - 1;	//вниз влево
-	const auto offsetBR = width + 1;	//вниз вправо
-
-	//левая и правая линия
-	{
-		for (size_t y = 1; y < height - 1; ++y)
-		{
-			const auto left = y * width;
-			size_t countMines = CalcMinesAround(left + 1, left + width, left - width);
-			if (field[left - offsetTR].hasMine)
-				++countMines;
-			if (field[left + offsetBR].hasMine)
-				++countMines;
-			field[left].countMinesAround = countMines;
-		}
-
-		for (size_t y = 1; y < height - 1; ++y)
-		{
-			const auto right = y * width + width - 1;
-			size_t countMines = CalcMinesAround(right - 1, right + width, right - width);
-			if (field[right - offsetTL].hasMine)
-				++countMines;
-			if (field[right + offsetBL].hasMine)
-				++countMines;
-			field[right].countMinesAround = countMines;
-		}
-	}
-
-	//верхняя линия и нижняя линия
-	{
-		for (size_t x = 1; x < width - 1; ++x)
-		{
-			size_t countMines = 0;
-			if (field[x - 1].hasMine)
-				++countMines;
-			if (field[x + 1].hasMine)
-				++countMines;
-			for (size_t i = x + offsetBL; i <= x + offsetBR; ++i)
-			{
-				if (field[i].hasMine)
-					++countMines;
-			}
-			field[x].countMinesAround = countMines;
-		}
-
-		for (size_t x = (height - 1) * width + 1; x < countCells - 1; ++x)
-		{
-			size_t countMines = 0;
-			if (field[x - 1].hasMine)
-				++countMines;
-			if (field[x + 1].hasMine)
-				++countMines;
-			for (size_t i = x - offsetTL; i <= x - offsetTR; ++i)
-			{
-				if (field[i].hasMine)
-					++countMines;
-			}
-			field[x].countMinesAround = countMines;
-		}
-	}
-
-	//и все остальное в центре
-	{
-		const size_t countCellInMiddleRow = width - 2;
-		for (size_t y = 1; y < height - 1; ++y)
-		{
-			auto index = y * width + 1;
-			for (size_t x = 0; x < countCellInMiddleRow; ++x)
-			{
-				size_t countMines = 0;
-				//3 верхних клетки
-				for (size_t i = index - offsetTL; i <= index - offsetTR; ++i)
-				{
-					if (field[i].hasMine)
-						++countMines;
-				}
-				//3 нижних клетки
-				for (size_t i = index + offsetBL; i <= index + offsetBR; ++i)
-				{
-					if (field[i].hasMine)
-						++countMines;
-				}
-
-				if (field[index - 1].hasMine)
-					++countMines;
-				if (field[index + 1].hasMine)
-					++countMines;
-
-				field[index].countMinesAround = countMines;
-				++index;
-			}
-		}
-	}
 }

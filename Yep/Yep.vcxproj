@@ -187,6 +187,7 @@
   <ItemGroup>
     <ClInclude Include="AppStrings.h" />
     <ClInclude Include="AppTypes.h" />
+    <ClInclude Include="FieldCell.h" />
     <ClInclude Include="GameField.h" />
     <ClInclude Include="MainFrm.h" />
     <ClInclude Include="Resource.h" />
@@ -197,6 +198,7 @@
     <ClInclude Include="YepView.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="FieldCell.cpp" />
     <ClCompile Include="GameField.cpp" />
     <ClCompile Include="MainFrm.cpp" />
     <ClCompile Include="stdafx.cpp">
