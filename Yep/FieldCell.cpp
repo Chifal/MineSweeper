@@ -34,6 +34,16 @@ void icc::MineSweeper::FieldCell::AddNeighbors(FieldCell* n1, FieldCell* n2)
 	allNeighbors.push_back(n2);
 }
 
+std::vector<FieldCell*>& icc::MineSweeper::FieldCell::GetNeighbors()
+{
+	return allNeighbors;
+}
+
+size_t icc::MineSweeper::FieldCell::GetCellIndex() const
+{
+	return cellIndex;
+}
+
 void icc::MineSweeper::FieldCell::AddNeighbors(FieldCell* n1, FieldCell* n2, FieldCell* n3)
 {
 	allNeighbors.push_back(n1);
@@ -41,7 +51,8 @@ void icc::MineSweeper::FieldCell::AddNeighbors(FieldCell* n1, FieldCell* n2, Fie
 	allNeighbors.push_back(n3);
 }
 
-icc::MineSweeper::FieldCell::FieldCell() : hasMine(false), countMinesAround(0), isOpened(FALSE)
+icc::MineSweeper::FieldCell::FieldCell(size_t index) : hasMine(false), countMinesAround(0), isOpened(FALSE),
+	cellIndex(index)
 {
 
 }

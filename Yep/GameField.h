@@ -30,7 +30,7 @@ namespace icc
 			//передаваемый параметр - клетка в которой не должно быть мины
 			void	GenerateMines(size_t excludeCellIndex);
 
-			void	OpenCellsAround(size_t cellIndex, std::vector<OPENED_CELL_INFO>& openedCells);
+			void	OpenCellsAround(FieldCell* cell, std::vector<OPENED_CELL_INFO>& openedCells);
 			inline	size_t	CalcMinesAround(size_t n1, size_t n2, size_t n3)
 			{
 				size_t result = 0;

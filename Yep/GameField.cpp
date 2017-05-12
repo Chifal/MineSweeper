@@ -19,7 +19,7 @@ void icc::MineSweeper::GameField::CreateField()
 {
 	field.resize(countCells);
 	for (size_t i = 0; i < countCells; ++i)
-		field[i] = new FieldCell();
+		field[i] = new FieldCell(i);
 
 	SetupNeighbors();
 	isOpenedField = FALSE;
@@ -153,26 +153,40 @@ EOpenCellResult icc::MineSweeper::GameField::OpenCell(size_t cellIndex, std::vec
 	}
 	else
 	{
-		field[cellIndex]->SetAsOpened();
-
 		if (field[cellIndex]->IsEmpty())
-			OpenCellsAround(cellIndex, openedCells);
+			OpenCellsAround(field[cellIndex], openedCells);
 		else
 		{
+			field[cellIndex]->SetAsOpened();
+
 			OPENED_CELL_INFO cellInfo(cellIndex, field[cellIndex]->GetCountMinesAround(), field[cellIndex]->HasMine());
 			openedCells.push_back(cellInfo);
 		}
 
 		return EOpenCellResult::Luckyboy;
 	}
-	//for (size_t i = 0; i < countCells; ++i)
-	//{
-	//	OPENED_CELL_INFO cellInfo(i, field[i].countMinesAround, field[i]->HasMine());
-	//	openedCells.push_back(cellInfo);
-	//}
 }
 
-void icc::MineSweeper::GameField::OpenCellsAround(size_t cellIndex, std::vector<OPENED_CELL_INFO>& openedCells)
+void icc::MineSweeper::GameField::OpenCellsAround(FieldCell* cell, std::vector<OPENED_CELL_INFO>& openedCells)
 {
+	ASSERT(!cell->IsOpened());	//уже открытые мне тут не нужны
+	ASSERT(cell->IsEmpty());
 
+	cell->SetAsOpened();
+	OPENED_CELL_INFO cellInfo(cell->GetCellIndex(), cell->GetCountMinesAround(), cell->HasMine());
+	openedCells.push_back(cellInfo);
+
+	for (auto neighbor : cell->GetNeighbors())
+	{
+		if (!neighbor->IsOpened())
+		{
+			if (neighbor->IsEmpty())
+				OpenCellsAround(neighbor, openedCells);
+			else
+			{
+				OPENED_CELL_INFO neighborInfo(neighbor->GetCellIndex(), neighbor->GetCountMinesAround(), neighbor->HasMine());
+				openedCells.push_back(neighborInfo);
+			}
+		}
+	}
 }
